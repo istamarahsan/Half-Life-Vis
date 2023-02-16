@@ -6,10 +6,13 @@ from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from random import randint
 import sys
+from half_life import HalfLifeCalculator
+
 
 class Sim():
-    def __init__(self, mw, defaultInterval = 100, modeCurrent = 0, timeScale = 0, nZero = 0, halfLife = 0):
+    def __init__(self, mw, calculator: HalfLifeCalculator, defaultInterval=100, modeCurrent=0, timeScale=0, nZero=0, halfLife=0):
         self.mw = mw
+        self.calculator = calculator
 
         self.defaultInterval = defaultInterval
         self.modeCurrent = modeCurrent
@@ -64,7 +67,7 @@ class Sim():
                 painter.drawPoint(
                     randint(0, self.mw.visWidth),  # x
                     randint(0, self.mw.visHeight)   # y
-                    )
+                )
             painter.end()
             self.mw.ui.labelVis.update()
 
@@ -75,12 +78,14 @@ class Sim():
             ## STATS ##
             self.mw.ui.statsYAxisLabelStat.setText(str(round(self.y, 2)))
             self.mw.ui.statsXAxisLabelStat.setText(str(round(self.x, 2)))
-            self.mw.ui.statsRealTimeStat.setText( str(round(self.timeElapsed,1)) )
+            self.mw.ui.statsRealTimeStat.setText(
+                str(round(self.timeElapsed, 1)))
             self.mw.ui.statsSimulatedTimeStat.setText(str(round(self.x, 2)))
 
             ## UPDATE DATA ##
             self.x += self.timeScale
-            self.y = self.nZero *( (1/2)**(self.x/self.halfLife) )
+            self.y = self.calculator.n_remaining(
+                self.nZero, self.halfLife, self.x)
             self.graph_x.append(self.x)
             self.graph_y.append(self.y)
 
@@ -97,9 +102,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
 
         self.presets = {
-        "<Select>":{"nZeroUnit":"","halfLife":0.0,"timeScale":"Years"},
-        "Carbon-14":{"nZeroUnit":"Nuclei","halfLife":5730.0,"timeScale":"Years"},
-        "Plutonium-239":{"nZeroUnit":"Nuclei","halfLife":24110.0,"timeScale":"Years"},
+            "<Select>": {"nZeroUnit": "", "halfLife": 0.0, "timeScale": "Years"},
+            "Carbon-14": {"nZeroUnit": "Nuclei", "halfLife": 5730.0, "timeScale": "Years"},
+            "Plutonium-239": {"nZeroUnit": "Nuclei", "halfLife": 24110.0, "timeScale": "Years"},
         }
 
         for preset_name in self.presets:
@@ -114,37 +119,49 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.visWidth = self.ui.labelVis.width()
         self.visHeight = self.ui.labelVis.height()
-        self.ui.labelVis.setPixmap( QtGui.QPixmap( self.visWidth, self.visHeight ) )
+        self.ui.labelVis.setPixmap(
+            QtGui.QPixmap(self.visWidth, self.visHeight))
         self.clear_canvas()
 
         pen = pg.mkPen(color='#000000')
         self.ui.graphWidgetHalfLifeDashboard.setBackground('w')
         self.ui.graphWidgetHalfLife.setBackground('w')
-        self.graphDataDash = self.ui.graphWidgetHalfLifeDashboard.plot([0], [0], pen=pen)
+        self.graphDataDash = self.ui.graphWidgetHalfLifeDashboard.plot([0], [
+                                                                       0], pen=pen)
         self.graphData = self.ui.graphWidgetHalfLife.plot([0], [0], pen=pen)
 
-        self.ui.inputPresetsComboBox.currentIndexChanged[str].connect(self.apply_preset)
+        self.ui.inputPresetsComboBox.currentIndexChanged[str].connect(
+            self.apply_preset)
         self.ui.inputPresetsComboBox.setCurrentIndex(0)
 
-        self.ui.inputNZeroLineEdit.textChanged.connect(self.change_nZero_unit_label)
+        self.ui.inputNZeroLineEdit.textChanged.connect(
+            self.change_nZero_unit_label)
 
-        self.ui.inputTimeScaleComboBox.currentIndexChanged[str].connect(self.change_time_unit_label)
+        self.ui.inputTimeScaleComboBox.currentIndexChanged[str].connect(
+            self.change_time_unit_label)
         self.ui.inputTimeScaleComboBox.setCurrentIndex(4)
 
         self.ui.controlsStartStopButton.clicked.connect(self.start_sim)
         self.ui.controlsResetButton.clicked.connect(self.reset_all)
 
-        self.ui.controlsSimSpeedButton_1.clicked.connect(lambda: self.set_sim_speed(self.sim.defaultInterval*4))
-        self.ui.controlsSimSpeedButton_2.clicked.connect(lambda: self.set_sim_speed(self.sim.defaultInterval*2))
-        self.ui.controlsSimSpeedButton_3.clicked.connect(lambda: self.set_sim_speed(self.sim.defaultInterval))
-        self.ui.controlsSimSpeedButton_4.clicked.connect(lambda: self.set_sim_speed(self.sim.defaultInterval/2))
-        self.ui.controlsSimSpeedButton_5.clicked.connect(lambda: self.set_sim_speed(self.sim.defaultInterval/5))
+        self.ui.controlsSimSpeedButton_1.clicked.connect(
+            lambda: self.set_sim_speed(self.sim.defaultInterval*4))
+        self.ui.controlsSimSpeedButton_2.clicked.connect(
+            lambda: self.set_sim_speed(self.sim.defaultInterval*2))
+        self.ui.controlsSimSpeedButton_3.clicked.connect(
+            lambda: self.set_sim_speed(self.sim.defaultInterval))
+        self.ui.controlsSimSpeedButton_4.clicked.connect(
+            lambda: self.set_sim_speed(self.sim.defaultInterval/2))
+        self.ui.controlsSimSpeedButton_5.clicked.connect(
+            lambda: self.set_sim_speed(self.sim.defaultInterval/5))
 
     def apply_preset(self, preset):
         selected_preset = self.presets[preset]
         self.ui.inputNZeroLineEdit.setText(selected_preset["nZeroUnit"])
-        self.ui.inputHalfLifeDoubleSpinBox.setValue(selected_preset["halfLife"])
-        self.ui.inputTimeScaleComboBox.setCurrentText(selected_preset["timeScale"])
+        self.ui.inputHalfLifeDoubleSpinBox.setValue(
+            selected_preset["halfLife"])
+        self.ui.inputTimeScaleComboBox.setCurrentText(
+            selected_preset["timeScale"])
 
     def change_nZero_unit_label(self, nZeroUnit):
         self.ui.statsYAxisLabelStatUnit.setText(nZeroUnit)
@@ -161,7 +178,8 @@ class MainWindow(QtWidgets.QMainWindow):
         halfLife = self.ui.inputHalfLifeDoubleSpinBox.value()
         timeScale = float(self.ui.inputSimulatedTimeSpinBox.value()/10)
 
-        self.ui.inputNZeroLineEdit.textChanged.disconnect(self.change_nZero_unit_label)
+        self.ui.inputNZeroLineEdit.textChanged.disconnect(
+            self.change_nZero_unit_label)
         self.ui.controlsStartStopButton.clicked.disconnect(self.start_sim)
         self.ui.controlsStartStopButton.clicked.connect(self.stop_sim)
         self.ui.controlsStartStopButton.setText("Stop")
@@ -174,7 +192,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.graphWidgetHalfLifeDashboard.setLabel('bottom', self.timeUnit)
         self.ui.graphWidgetHalfLife.setLabel('bottom', self.timeUnit)
 
-        self.sim = Sim(self, nZero=nZero, halfLife=halfLife, timeScale=timeScale)
+        self.sim = Sim(self, HalfLifeCalculator(), nZero=nZero, halfLife=halfLife,
+                       timeScale=timeScale)
         self.sim.start()
 
     def stop_sim(self):
@@ -195,7 +214,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.statsSimulatedTimeStat.setText("0")
         self.ui.controlsStartStopButton.clicked.connect(self.start_sim)
         self.ui.controlsStartStopButton.setText("Start")
-        self.ui.inputNZeroLineEdit.textChanged.connect(self.change_nZero_unit_label)
+        self.ui.inputNZeroLineEdit.textChanged.connect(
+            self.change_nZero_unit_label)
         del self.sim
 
     def set_sim_speed(self, interval):
@@ -206,6 +226,7 @@ class MainWindow(QtWidgets.QMainWindow):
         painter.eraseRect(0, 0, self.visWidth, self.visHeight)
         painter.end()
         self.ui.labelVis.update()
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
