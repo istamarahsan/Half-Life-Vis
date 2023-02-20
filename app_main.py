@@ -7,7 +7,7 @@ import pyqtgraph as pg
 from random import randint
 import sys
 from half_life import HalfLifeCalculator
-
+from gui_components import StatsDisplay
 
 class Sim():
     def __init__(self, mw, calculator: HalfLifeCalculator, defaultInterval=100, modeCurrent=0, timeScale=0, nZero=0, halfLife=0):
@@ -76,11 +76,9 @@ class Sim():
             self.mw.graphData.setData(self.graph_x, self.graph_y)
 
             ## STATS ##
-            self.mw.ui.statsYAxisLabelStat.setText(str(round(self.y, 2)))
-            self.mw.ui.statsXAxisLabelStat.setText(str(round(self.x, 2)))
-            self.mw.ui.statsRealTimeStat.setText(
-                str(round(self.timeElapsed, 1)))
-            self.mw.ui.statsSimulatedTimeStat.setText(str(round(self.x, 2)))
+            self.mw.stats.set_n(round(self.y, 2))
+            self.mw.stats.set_simulated_time_elapsed(round(self.x, 2))
+            self.mw.stats.set_real_time_elapsed(round(self.timeElapsed, 1))
 
             ## UPDATE DATA ##
             self.x += self.timeScale
@@ -93,13 +91,26 @@ class Sim():
         interval = int(interval)
         self.ticker.setInterval(interval)
 
-
 class MainWindow(QtWidgets.QMainWindow):
+
+    stats: StatsDisplay
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+
+        self.stats = StatsDisplay(
+            self.ui.statsYAxisLabelStat,
+            self.ui.statsXAxisLabelStatUnit,
+            self.ui.statsRealTimeStat,
+            self.ui.statsRealTimeStatUnit,
+            self.ui.statsXAxisLabelStat,
+            self.ui.statsSimulatedTimeStat,
+            self.ui.statsXAxisLabelStatUnit,
+            self.ui.statsSimulatedTimeStatUnit
+        )
 
         self.presets = {
             "<Select>": {"nZeroUnit": "", "halfLife": 0.0, "timeScale": "Years"},
@@ -112,10 +123,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.nZeroUnit = self.ui.inputNZeroLineEdit.text()
 
-        self.ui.statsYAxisLabelStat.setText("0")
-        self.ui.statsXAxisLabelStat.setText("0")
-        self.ui.statsRealTimeStat.setText("0")
-        self.ui.statsSimulatedTimeStat.setText("0")
+        self.stats.set_n(0)
+        self.stats.set_simulated_time_elapsed(0)
+        self.stats.set_real_time_elapsed(0)
 
         self.visWidth = self.ui.labelVis.width()
         self.visHeight = self.ui.labelVis.height()
@@ -164,13 +174,12 @@ class MainWindow(QtWidgets.QMainWindow):
             selected_preset["timeScale"])
 
     def change_nZero_unit_label(self, nZeroUnit):
-        self.ui.statsYAxisLabelStatUnit.setText(nZeroUnit)
+        self.stats.set_n_unit(nZeroUnit)
         self.nZeroUnit = nZeroUnit
 
     def change_time_unit_label(self, timeUnit):
         self.ui.inputSimulatedTimeLabel.setText(f"Simulated {timeUnit}")
-        self.ui.statsXAxisLabelStatUnit.setText(timeUnit)
-        self.ui.statsSimulatedTimeStatUnit.setText(timeUnit)
+        self.stats.set_simulated_time_unit(timeUnit)
         self.timeUnit = timeUnit
 
     def start_sim(self):
@@ -208,10 +217,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.clear_canvas()
         self.graphDataDash.setData([0], [0])
         self.graphData.setData([0], [0])
-        self.ui.statsYAxisLabelStat.setText("0")
-        self.ui.statsXAxisLabelStat.setText("0")
-        self.ui.statsRealTimeStat.setText("0")
-        self.ui.statsSimulatedTimeStat.setText("0")
+        self.stats.set_n(0)
+        self.stats.set_real_time_elapsed(0)
+        self.stats.set_simulated_time_elapsed(0)
         self.ui.controlsStartStopButton.clicked.connect(self.start_sim)
         self.ui.controlsStartStopButton.setText("Start")
         self.ui.inputNZeroLineEdit.textChanged.connect(
